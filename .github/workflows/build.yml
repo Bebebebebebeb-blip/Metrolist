@@ -62,8 +62,8 @@ jobs:
       - name: Build Release APK
         run: ./gradlew --console=plain assemble${{ matrix.variantName }}Release --warning-mode summary
         env:
-          METROLIST_APPLICATION_ID: com.metrolist.music
-          METROLIST_APP_NAME: Metrolist Nightly
+          METROLIST_APPLICATION_ID: com.metrolist.music.tap
+          METROLIST_APP_NAME: Metrolist tap
           METROLIST_BUILD_COMMIT: ${{ github.sha }}
           PULL_REQUEST: "false"
           GITHUB_EVENT_NAME: ${{ github.event_name }}
