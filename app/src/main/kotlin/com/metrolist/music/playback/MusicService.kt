@@ -72,6 +72,7 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStats
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import com.metrolist.music.audio.PcmTapAudioProcessor
 import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
@@ -4020,6 +4021,7 @@ class MusicService :
                         normalizationProcessor,
                         eqProcessor,
                         silenceProcessor,
+			PcmTapAudioProcessor(port = 9877),
                     ),
                     SilenceSkippingAudioProcessor(2_000_000, 20_000, 256),
                     SonicAudioProcessor(),
