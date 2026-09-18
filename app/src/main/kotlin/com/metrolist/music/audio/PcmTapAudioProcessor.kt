@@ -40,7 +40,9 @@ class PcmTapAudioProcessor(private val port: Int = 9877) : AudioProcessor {
     private var writerThread: Thread? = null
 
     override fun configure(inputAudioFormat: AudioFormat): AudioFormat {
+        debugLog("configure() called: encoding=${inputAudioFormat.encoding}, sampleRate=${inputAudioFormat.sampleRate}, channels=${inputAudioFormat.channelCount}")
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) {
+            debugLog("REJECTED: not 16-bit PCM, throwing UnhandledAudioFormatException")
             // Keep it simple for a first version - 16-bit PCM only.
             throw UnhandledAudioFormatException(inputAudioFormat)
         }
@@ -51,9 +53,15 @@ class PcmTapAudioProcessor(private val port: Int = 9877) : AudioProcessor {
 
     override fun isActive(): Boolean = inputAudioFormat != AudioFormat.NOT_SET
 
+    private var loggedFirstBuffer = false
+
     override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
         if (remaining == 0) return
+        if (!loggedFirstBuffer) {
+            loggedFirstBuffer = true
+            debugLog("queueInput() first call, remaining=$remaining bytes")
+        }
 
         // Duplicate the data for tapping without disturbing the
         // buffer we still need to pass downstream untouched.
@@ -94,20 +102,29 @@ class PcmTapAudioProcessor(private val port: Int = 9877) : AudioProcessor {
     }
 
     private fun startServer() {
-        if (running.getAndSet(true)) return
+        if (running.getAndSet(true)) {
+            debugLog("startServer() called again, already running - skipping")
+            return
+        }
+        debugLog("startServer() starting thread, will bind port $port")
         writerThread = Thread {
             try {
                 serverSocket = ServerSocket(port)
+                debugLog("bound to port $port, waiting for connections")
                 while (running.get()) {
                     // Blocks here until `nc`/socat connects from Termux.
                     val socket: Socket = serverSocket!!.accept()
+                    debugLog("client connected from ${socket.inetAddress}")
                     val out: OutputStream = socket.getOutputStream()
+                    var bytesSent = 0L
                     try {
                         while (running.get()) {
                             val chunk = queue.take()
                             out.write(chunk)
+                            bytesSent += chunk.size
                         }
                     } catch (e: Exception) {
+                        debugLog("client loop ended after $bytesSent bytes: ${e::class.simpleName}: ${e.message}")
                         // Client on the Termux side disconnected -
                         // loop back and wait for a new connection.
                     } finally {
@@ -115,6 +132,7 @@ class PcmTapAudioProcessor(private val port: Int = 9877) : AudioProcessor {
                     }
                 }
             } catch (e: Exception) {
+                debugLog("server thread crashed: ${e::class.java.name}: ${e.message}")
                 // Port busy / socket closed during reset() - fine to ignore,
                 // this is a debug/visualizer tap, not critical playback path.
             }
@@ -122,6 +140,14 @@ class PcmTapAudioProcessor(private val port: Int = 9877) : AudioProcessor {
             isDaemon = true
             name = "PcmTapAudioProcessor"
             start()
+        }
+    }
+
+    private fun debugLog(msg: String) {
+        try {
+            java.io.File("/sdcard/pcmtap_debug.log").appendText("${System.currentTimeMillis()}: $msg\n")
+        } catch (e: Exception) {
+            // If we can't even write the debug log, there's nothing more we can do here.
         }
     }
 
