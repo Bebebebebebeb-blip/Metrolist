@@ -1,5 +1,6 @@
 package com.metrolist.music.audio
 
+import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.AudioProcessor.AudioFormat
@@ -19,14 +20,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * running in Termux) can read it as if it were a `fifo` source.
  *
  * Connect from Termux with something like:
- *   nc 127.0.0.1:9877 > /tmp/mpd.fifo &
+ *   nc 127.0.0.1 9877 > ~/mpd.fifo &
  *   cava
  *
  * NOTE: exact AudioProcessor method signatures can shift a little
  * between Media3 versions - check this against whatever version
  * Metrolist pins in its build.gradle if it doesn't compile as-is.
  */
-class PcmTapAudioProcessor(private val port: Int = 9877) : AudioProcessor {
+class PcmTapAudioProcessor(private val context: Context, private val port: Int = 9877) : AudioProcessor {
 
     private var inputAudioFormat: AudioFormat = AudioFormat.NOT_SET
     private var outputBuffer: ByteBuffer = AudioProcessor.EMPTY_BUFFER
@@ -145,7 +146,8 @@ class PcmTapAudioProcessor(private val port: Int = 9877) : AudioProcessor {
 
     private fun debugLog(msg: String) {
         try {
-            java.io.File("/sdcard/pcmtap_debug.log").appendText("${System.currentTimeMillis()}: $msg\n")
+            val dir = context.getExternalFilesDir(null)
+            java.io.File(dir, "pcmtap_debug.log").appendText("${System.currentTimeMillis()}: $msg\n")
         } catch (e: Exception) {
             // If we can't even write the debug log, there's nothing more we can do here.
         }
